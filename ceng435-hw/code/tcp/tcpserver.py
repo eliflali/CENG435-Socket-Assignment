@@ -20,7 +20,9 @@ def tcp_server():
         with conn:
             print('Connected by', addr)
             for i in range(10):
-                send_file(conn, f"small-{i}.obj")
-                send_file(conn, f"large-{i}.obj")
+                send_file(conn, f"../../objects/small-{i}.obj")
+                send_file(conn, f"../../objects/large-{i}.obj")
+                print("file sent", f"../../objects/small-{i}.obj")
+                print("file sent", f"../../objects/large-{i}.obj")
 
 tcp_server()

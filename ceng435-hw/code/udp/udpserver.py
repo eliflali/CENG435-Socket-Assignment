@@ -3,11 +3,14 @@ import struct
 import time
 
 def udp_server():
-    host = '0.0.0.0'
-    port = 65433
+    localIP     = "0.0.0.0"
+
+    localPort   = 20001
+
+    bufferSize  = 1024      
 
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    server_socket.bind((host, port))
+    server_socket.bind((localIP, localPort))
 
     window_size = 1  # Initial window size
     ssthresh = 8     # Slow start threshold
@@ -20,12 +23,12 @@ def udp_server():
         while base < len(packets):
             while next_seq_num < base + window_size and next_seq_num < len(packets):
                 print(f"Sending packet: {next_seq_num}")
-                server_socket.sendto(packets[next_seq_num], (host, port))
+                server_socket.sendto(packets[next_seq_num], (localIP, localPort))
                 next_seq_num += 1
 
             server_socket.settimeout(0.5)  # Set timeout for ACKs
             try:
-                ack_packet, _ = server_socket.recvfrom(1024)
+                ack_packet, _ = server_socket.recvfrom(bufferSize)
                 if len(ack_packet) != 8:
                     print(f"Received an incorrectly sized packet: {len(ack_packet)} bytes")
                     continue

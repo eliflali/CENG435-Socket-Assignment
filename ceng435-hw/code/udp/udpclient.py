@@ -3,7 +3,7 @@ import struct
 
 def udp_client():
     server_host = '172.17.0.2'  # Server IP address
-    server_port = 65433         # Server port
+    server_port = 20001         # Server port
 
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 

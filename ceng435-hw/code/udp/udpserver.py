@@ -5,10 +5,12 @@ import time
 def udp_server():
     localIP     = "0.0.0.0"
 
+
+
     localPort   = 20001
 
     bufferSize  = 1024      
-
+    clientIP = "172.17.0.3"  # Expected client IP address
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     server_socket.bind((localIP, localPort))
 
@@ -28,7 +30,10 @@ def udp_server():
 
             server_socket.settimeout(0.5)  # Set timeout for ACKs
             try:
-                ack_packet, _ = server_socket.recvfrom(bufferSize)
+                ack_packet, address = server_socket.recvfrom(bufferSize)
+                if address[0] != clientIP:
+                    print(f"Ignoring packet from unknown address: {address}")
+                    continue
                 if len(ack_packet) != 8:
                     print(f"Received an incorrectly sized packet: {len(ack_packet)} bytes")
                     continue

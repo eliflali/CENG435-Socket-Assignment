@@ -7,8 +7,9 @@ def udp_client():
     server_port = 20001         # Server port
     client_host = '172.17.0.3'  # Client IP address
     #client_host = '127.0.0.1'
+    client_port = 20002  # Client's own port for receiving
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    client_socket.bind((client_host, 0))  # Bind the client socket
+    client_socket.bind((client_host, client_port))  # Bind the client socket
 
     # Send a 'ready' message to the server to indicate that the client is ready
     print("Sending ready message to the server...")
@@ -34,6 +35,7 @@ def udp_client():
                 received_packets[seq] = data
 
                 # Send ACK
+                print(f"Sending ACK for packet: {seq}")
                 ack_packet = struct.pack('II', seq, 0)  # Ensure this is 8 bytes
                 client_socket.sendto(ack_packet, server_address)
 

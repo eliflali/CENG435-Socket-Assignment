@@ -20,8 +20,10 @@ def udp_server():
     window_size = 1  # Initial window size
     ssthresh = 8     # Slow start threshold
     # REMEMBER TO CHANGE PATH WHENEVER YOU CARRY THIS SCRIPT!!!!
-    objects_path = '../objects/'
-    
+    objects_path = '../../objects/'
+
+    clientIP = "172.17.0.3"  # Client's IP address
+    clientPort = 20002
     # List all .obj files in the objects directory
     obj_files = sorted(glob.glob(os.path.join(objects_path, '*.obj')))  # Sort the files
     print(f"Found object files: {obj_files}")
@@ -64,9 +66,9 @@ def udp_server():
                 server_socket.settimeout(0.5)  # Set timeout for ACKs
                 try:
                     ack_packet, address = server_socket.recvfrom(bufferSize)
-                    #if address[0] != clientIP:
-                        #print(f"Ignoring packet from unknown address: {address}")
-                        #continue
+                    if address[0] != clientIP or address[1] != clientPort:
+                        print(f"Ignoring packet from unknown address: {address}")
+                        continue
                     if len(ack_packet) != 8:
                         print(f"Received an incorrectly sized packet: {len(ack_packet)} bytes")
                         continue

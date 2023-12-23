@@ -6,8 +6,13 @@ def udp_client():
     server_host = '172.17.0.2'  # Server IP address
     server_port = 20001         # Server port
     client_host = '172.17.0.3'  # Client IP address
+    #client_host = '127.0.0.1'
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     client_socket.bind((client_host, 0))  # Bind the client socket
+
+    # Send a 'ready' message to the server to indicate that the client is ready
+    print("Sending ready message to the server...")
+    client_socket.sendto(b'ready', (server_host, server_port))
 
     expected_seq = 0
     received_packets = {}  # Dictionary to keep track of received packets

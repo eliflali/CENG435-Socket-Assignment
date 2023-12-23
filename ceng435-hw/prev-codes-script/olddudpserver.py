@@ -26,7 +26,7 @@ def udp_server():
     obj_files = sorted(glob.glob(os.path.join(objects_path, '*.obj')))  # Sort the files
     print(f"Found object files: {obj_files}")
     # Create packets with the content of each .obj file
-  # Maximum size of data in each UDP packet
+    # Maximum size of data in each UDP packet
     MAX_PACKET_SIZE = 1000  # 10 KB
 
     # Create packets with the content of each .obj file
@@ -45,6 +45,9 @@ def udp_server():
                 packets.append(packet)
                 print(f"Created packet {i} for file {file_path} with size {len(packet)}")
 
+    print("Waiting for client to be ready...")
+    ready_packet, address = server_socket.recvfrom(bufferSize)
+    print(f"Client ready message received from {address}")
             
     next_seq_num = 0
     base = 0

@@ -40,23 +40,21 @@ def udp_server():
                 seq_number += 1
     
     # alter the order in file_paths so that 1 large and 1 small file are consecutive
-    counter = 0
-    for i in range(1, len(file_paths)-9):
-        if counter % 2 == 0:
-            file_paths[i], file_paths[i+9] = file_paths[i+9], file_paths[i]
-        counter += 1
-    #print(file_paths)
-
+    ordered_file_paths = []
+    for i in range(0, len(file_paths)//2):
+        ordered_file_paths.append(file_paths[i])
+        ordered_file_paths.append(file_paths[i+len(file_paths)//2])     
+   
     print("Waiting for client to be ready...")
     ready_packet, address = server_socket.recvfrom(bufferSize)
     print(f"Client ready message received from {address}")
 
     next_seq_num = 0
-    base_per_file = {file_path: 0 for file_path in file_paths}
+    base_per_file = {file_path: 0 for file_path in ordered_file_paths}
     acked_packets = set()
 
-    while any(base_per_file[file_path] < len(packets_lists[file_path]) for file_path in file_paths):
-        for file_path in file_paths:
+    while any(base_per_file[file_path] < len(packets_lists[file_path]) for file_path in ordered_file_paths):
+        for file_path in ordered_file_paths:
             if base_per_file[file_path] >= len(packets_lists[file_path]):
                 continue
 
@@ -83,14 +81,14 @@ def udp_server():
                     acked_packets.add((ack_file_index, ack_seq))
 
                 # Check for completion of all files
-                if all(base_per_file[file_path] == len(packets_lists[file_path]) for file_path in file_paths):
+                if all(base_per_file[file_path] == len(packets_lists[file_path]) for file_path in ordered_file_paths):
                     print("All packets have been acknowledged. Terminating server.")
                     server_socket.close()
                     return
 
             except socket.timeout:
                 print(f"Timeout, checking for missing packets...")
-                for file_path in file_paths:
+                for file_path in ordered_file_paths:
                     for seq in range(base_per_file[file_path], len(packets_lists[file_path])):
                         if (file_paths.index(file_path), seq) not in acked_packets:
                             print(f"Resending packet from file {file_path}, sequence number: {seq}")

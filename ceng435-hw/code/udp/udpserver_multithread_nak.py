@@ -15,8 +15,8 @@ def udp_server():
 
     window_size = 1
     ssthresh = 8
-    objects_path = '../../objects/'
-
+    objects_path = 'C:/Users/Administrator/Desktop/CENG435-Socket-Assignment-main/ceng435-hw/objects'
+ 
     clientIP = "127.0.0.1"
     clientPort = 20002
 
@@ -51,7 +51,6 @@ def udp_server():
 
     while True:
         if base == len(packets):
-            print("All packets have been acknowledged. Terminating server.")
             break
         try:
             while base < len(packets):
@@ -100,6 +99,10 @@ def udp_server():
                     duplicate_acks = 0
 
         finally:
+            print("All packets have been acknowledged. Terminating server.")
+            # send client a termination message
+            termination_packet = struct.pack('I', 100000)
+            server_socket.sendto(termination_packet, (clientIP, clientPort))
             server_socket.close()
 
 if __name__ == "__main__":

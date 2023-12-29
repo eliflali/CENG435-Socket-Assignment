@@ -29,8 +29,22 @@ def process_packets(packet_queue, received_packets, expected_seq, expected_seq_l
             packet = packet_queue.get(timeout=1)  # Timeout to check for program termination
             if not packet:
                 break
-
+            
+            # Unpack the sequence number to check for termination message
             seq, = struct.unpack('I', packet[:4])
+
+            # Check if the sequence number is 0, indicating termination
+            if seq == 100000:
+                print("Termination message received. Ending transmission.")
+                # print the value of is_complete
+                is_complete.set()
+                print(is_complete.is_set())
+                with open('received_file.obj', 'wb') as f:
+                    for i in sorted(received_packets.keys()):
+                        f.write(received_packets[i])
+                print("File reassembled and saved as 'received_file.obj'.")
+                break
+
             data = packet[4:]
 
             with expected_seq_lock:
@@ -66,6 +80,10 @@ def process_packets(packet_queue, received_packets, expected_seq, expected_seq_l
                 if current_time - last_packet_time > TIMEOUT_THRESHOLD:
                     is_complete.set()  # Set the completion flag if timeout threshold is exceeded
             continue
+        if is_complete.is_set():
+            print("line 81")
+            break
+    client_socket.close()
 
 def udp_client():
     server_host = "127.0.0.1"
@@ -95,16 +113,12 @@ def udp_client():
     receiver_thread.start()
     processor_thread.start()
 
-    receiver_thread.join()
-    processor_thread.join()
-
-    client_socket.close()
+    #receiver_thread.join()
+    #processor_thread.join()
+    #client_socket.close()    
 
     # Save the received data to a file
-    with open('received_file.obj', 'wb') as f:
-        for i in sorted(received_packets.keys()):
-            f.write(received_packets[i])
-    print("File reassembled and saved as 'received_file.obj'.")
+    
 
 if __name__ == "__main__":
     udp_client()

@@ -22,57 +22,57 @@ def receive_data(client_socket, packet_queue, server_address, is_complete, last_
             print(f"Socket error: {e}")
             break
 
-def process_packets(packet_queue, received_packets, expected_seq, expected_seq_lock, server_address, client_socket, is_complete, last_packet_time_lock):
+def process_packets(packet_queue, received_files, expected_seq, expected_seq_lock, server_address, client_socket, is_complete, last_packet_time_lock):
     global last_packet_time
     while not is_complete.is_set():
         try:
-            packet = packet_queue.get(timeout=1)  # Timeout to check for program termination
+            packet = packet_queue.get(timeout=1)
             if not packet:
                 break
-            
-            # Unpack the sequence number to check for termination message
-            seq, = struct.unpack('I', packet[:4])
 
-            # Check if the sequence number is 0, indicating termination
-            if seq == 100000:
+            # Unpack the file ID and sequence number
+            file_id, seq = struct.unpack('II', packet[:8])
+
+            if seq == 100000:  # Termination message
                 print("Termination message received. Ending transmission.")
-                # print the value of is_complete
                 is_complete.set()
-                print(is_complete.is_set())
-                with open('received_file.obj', 'wb') as f:
-                    for i in sorted(received_packets.keys()):
-                        f.write(received_packets[i])
-                print("File reassembled and saved as 'received_file.obj'.")
+
+                # Write each file's data to a separate file
+                for file_id, received_packets in received_files.items():
+                    with open(f'received_file_{file_id}.obj', 'wb') as f:
+                        for i in sorted(received_packets.keys()):
+                            f.write(received_packets[i])
+                    print(f"File {file_id} reassembled and saved as 'received_file_{file_id}.obj'.")
+
                 break
 
-            data = packet[4:]
+            data = packet[8:]
 
             with expected_seq_lock:
+                # Initialize the dictionary for a new file ID
+                if file_id not in received_files:
+                    received_files[file_id] = {}
+
                 if seq == expected_seq:
-                    print(f"Received packet: {seq}")
-                    received_packets[seq] = data
+                    print(f"Received packet: {seq} from file {file_id}")
+                    received_files[file_id][seq] = data
                     expected_seq += 1
 
                     # Check for any buffered out-of-order packets that can now be processed
-                    while expected_seq in received_packets:
-                        print(f"Received packet: {expected_seq}")
+                    while expected_seq in received_files[file_id]:
+                        print(f"Received packet: {expected_seq} from file {file_id}")
                         expected_seq += 1
 
                     # Send ACK for the correctly received packet
-                    ack_packet = struct.pack('II', seq, 0)
+                    ack_packet = struct.pack('II', file_id, seq)
                     client_socket.sendto(ack_packet, server_address)
 
                 elif seq > expected_seq:
-                    print(f"Out of order packet: {seq}, expected: {expected_seq}")
-                    received_packets[seq] = data
+                    print(f"Out of order packet: {seq}, expected: {expected_seq} from file {file_id}")
+                    received_files[file_id][seq] = data
                     # Send a negative ACK for the missing packet
-                    nack_packet = struct.pack('II', expected_seq, 1)
+                    nack_packet = struct.pack('II', file_id, expected_seq)
                     client_socket.sendto(nack_packet, server_address)
-
-            with last_packet_time_lock:
-                current_time = time.time()
-                if current_time - last_packet_time > TIMEOUT_THRESHOLD:
-                    is_complete.set()  # Set the completion flag if timeout threshold is exceeded
 
         except queue.Empty:
             with last_packet_time_lock:
@@ -80,10 +80,9 @@ def process_packets(packet_queue, received_packets, expected_seq, expected_seq_l
                 if current_time - last_packet_time > TIMEOUT_THRESHOLD:
                     is_complete.set()  # Set the completion flag if timeout threshold is exceeded
             continue
-        if is_complete.is_set():
-            print("line 81")
-            break
+
     client_socket.close()
+
 
 def udp_client():
     server_host = "127.0.0.1"

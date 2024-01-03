@@ -85,22 +85,22 @@ def udp_server():
     ready_packet, address = server_socket.recvfrom(bufferSize)
     print(f"Client ready message received from {address}")
 
-    next_seq_num = 0
-    base = 0
+    rr_packet_index = 0
+    ack_counter = 0
     duplicate_acks = 0
     try:
         while True:
-            if base >= len(round_robin_packets):
+            if ack_counter >= len(round_robin_packets):
                 break
-            state = file_transmission_state[round_robin_packets[next_seq_num][0]]
-            if(len(round_robin_packets) - next_seq_num < window_size):
-                window_size = len(round_robin_packets) - next_seq_num 
-            while (state['next_seq_num'] < state['base'] + window_size) and (next_seq_num < len(round_robin_packets)):
-                print(f"Sending packet {next_seq_num} from file {round_robin_packets[next_seq_num][0]}")
+            state = file_transmission_state[round_robin_packets[rr_packet_index][0]]
+            if(len(round_robin_packets) - rr_packet_index < window_size):
+                window_size = len(round_robin_packets) - rr_packet_index 
+            while (state['next_seq_num'] < state['base'] + window_size) and (rr_packet_index < len(round_robin_packets)):
+                print(f"Sending packet {rr_packet_index} from file {round_robin_packets[rr_packet_index][0]}")
                 #print(round_robin_packets[next_seq_num][1])
-                server_socket.sendto(round_robin_packets[next_seq_num][1], (clientIP, clientPort))
+                server_socket.sendto(round_robin_packets[rr_packet_index][1], (clientIP, clientPort))
                 state['next_seq_num'] += 1
-                next_seq_num += 1
+                rr_packet_index += 1
 
             server_socket.settimeout(1.0)
             try:
@@ -121,20 +121,19 @@ def udp_server():
                     state = file_transmission_state[ack_file_id]
                     if ack_seq_num >= state['base']:
                         state['base'] = ack_seq_num + 1
-                        base += 1
+                        ack_counter += 1
                         #print(ack_seq_num)
-                        #next_seq_num += 1
-                        print(f"ACK received for packet {ack_seq_num} from file {ack_file_id} base: {base}")
+                        print(f"ACK received for packet {ack_seq_num} from file {ack_file_id} base: {ack_counter}")
                         # Removed dynamic window size adjustment here
             except socket.timeout:
                 for file_id in range(len(obj_files)):
                     state = file_transmission_state[file_id]
                     # Removed dynamic window size adjustment here
-                    next_seq_num -= state['next_seq_num'] - state['base']
+                    rr_packet_index -= state['next_seq_num'] - state['base']
                     state['next_seq_num'] = state['base']
     finally:
-        print(base, next_seq_num)
-        if base >= next_seq_num:
+        #print(base, rr_packet_index)
+        if ack_counter >= rr_packet_index:
             
             print("All packets have been acknowledged. Terminating server.")
         else:

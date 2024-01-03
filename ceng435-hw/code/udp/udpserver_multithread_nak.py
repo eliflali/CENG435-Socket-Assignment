@@ -24,6 +24,7 @@ def packet_creator(obj_files):
     MAX_PACKET_SIZE = 1000
     packets_per_file = {}
     file_transmission_state = {}
+    packet_transmission_state = {}
     file_id = 0
     
     for file_path in obj_files:
@@ -35,20 +36,21 @@ def packet_creator(obj_files):
             sequence_number = 0
             # Split the file into chunks
             chunks = [data[i:i+MAX_PACKET_SIZE] for i in range(0, len(data), MAX_PACKET_SIZE)]
-
+            file_packet_transmission_state = []
             # Create a packet for each chunk
             for chunk in chunks:
                 checksum = compute_checksum(chunk)
                 packet = struct.pack('III', file_id, sequence_number, checksum) + chunk
                 file_packets.append(packet)
+                file_packet_transmission_state.append('UNACKED')
                 print(f"Created packet {sequence_number} for file {file_path} with size {len(packet)}")
                 sequence_number += 1  # Increment sequence number for the next packet
-
+            packet_transmission_state[file_id] = file_packet_transmission_state
             file_transmission_state[file_id] = {'base': 0, 'next_seq_num': 0, 'window_size': 4}
             packets_per_file[file_id] = file_packets
             file_id += 1  # Increment file ID for the next file
 
-    return packets_per_file, file_transmission_state
+    return packets_per_file, file_transmission_state, packet_transmission_state
 
 
 def round_robinizer(packets_per_file):
@@ -63,8 +65,8 @@ def round_robinizer(packets_per_file):
             
 
 def udp_server():
-    #localIP = "127.0.0.1"
-    localIP  = "172.17.0.2" #if compiled with docker
+    localIP = "127.0.0.1"
+    #localIP  = "172.17.0.2" #if compiled with docker
     localPort = 20001
     bufferSize = 1024
     finished= False
@@ -73,14 +75,15 @@ def udp_server():
     server_socket.bind((localIP, localPort))
 
 
-    #clientIP = "127.0.0.1"
-    clientIP = "172.17.0.3"  # Client's IP address
+    clientIP = "127.0.0.1"
+    #clientIP = "172.17.0.3"  # Client's IP address
     clientPort = 20002
     window_size = 4
-    ssthresh = 8
+    ssthresh = 8  # Threshold for switching between slow start and congestion avoidance
+    is_slow_start = True  # Flag to indicate if the algorithm is in slow start phase
     obj_files = read_files()
     
-    packets_per_file, file_transmission_state = packet_creator(obj_files)
+    packets_per_file, file_transmission_state, packet_transmission_state = packet_creator(obj_files)
     
     round_robin_packets = round_robinizer(packets_per_file)
 
@@ -96,16 +99,28 @@ def udp_server():
         while ack_counter < len(round_robin_packets)-1:
             if ack_counter >= len(round_robin_packets):
                 break
-            state = file_transmission_state[round_robin_packets[rr_packet_index][0]]
+            
             if(len(round_robin_packets) - rr_packet_index < window_size):
                 window_size = len(round_robin_packets) - rr_packet_index -1 
-            while (state['next_seq_num'] < state['base'] + window_size) and (rr_packet_index < len(round_robin_packets)):
-                print(f"Sending packet {rr_packet_index} from file {round_robin_packets[rr_packet_index][0]}")
+
+            while ((rr_packet_index < ack_counter + window_size) 
+                    and 
+                    (rr_packet_index < len(round_robin_packets))):
+                (file_id, packet) = round_robin_packets[rr_packet_index]
+                file_state = file_transmission_state[file_id]
+                #print(file_id, file_state['next_seq_num'])
+                packet_state = packet_transmission_state[file_id][file_state['next_seq_num']]
+                print(f"Sending packet {file_state['next_seq_num']} from file {file_id}")
+                if(packet_state == 'ACKED'):
+                    print(f"Already acked packet {file_state['next_seq_num']} from file {file_id}")
+                    file_state['next_seq_num'] += 1
+                    rr_packet_index += 1
+                    continue
                 #print(round_robin_packets[next_seq_num][1])
-                server_socket.sendto(round_robin_packets[rr_packet_index][1], (clientIP, clientPort))
-                packet_identifier = (round_robin_packets[rr_packet_index][0], state['next_seq_num'])
+                server_socket.sendto(packet, (clientIP, clientPort))
+                packet_identifier = (file_id, file_state['next_seq_num'])
                 unacknowledged_packets.add(packet_identifier)
-                state['next_seq_num'] += 1
+                file_state['next_seq_num'] += 1
                 rr_packet_index += 1
 
             server_socket.settimeout(1.0)
@@ -124,18 +139,31 @@ def udp_server():
                     print(f"Resending packet {ack_seq_num} from file {ack_file_id}")
 
                 else:
-                    state = file_transmission_state[ack_file_id]
+                    file_state = file_transmission_state[ack_file_id]
+                    packet_state = packet_transmission_state[ack_file_id][ack_seq_num]
                     acked_packet = (ack_file_id, ack_seq_num)
                     if acked_packet in unacknowledged_packets:
                         unacknowledged_packets.remove(acked_packet)
-                    if ack_seq_num >= state['base']:
-                        state['base'] = ack_seq_num + 1
+                    if ack_seq_num >= file_state['base']:
+                        file_state['base'] = ack_seq_num + 1
+                        packet_state = 'ACKED'
                         ack_counter += 1
                         #print(ack_seq_num)
                         print(f"ACK received for packet {ack_seq_num} from file {ack_file_id} base: {ack_counter}")
+                
+                if is_slow_start:
+                    if window_size < ssthresh:
+                        window_size *= 2  # Exponential increase
+                    else:
+                        is_slow_start = False  # Switch to congestion avoidance
+                else:
+                    window_size += 1  # Linear increase in congestion avoidance
 
             except socket.timeout:
                 print("Timeout occurred")
+                ssthresh = max(window_size // 2, 1)  # Reduce threshold
+                window_size = 1  # Reset window size to 1
+                is_slow_start = True  # Go back to slow start phase
                 if ack_counter != len(round_robin_packets) - 1:
                     print("Timeout occurred, resending unacknowledged packets")
                     for file_id, seq_num in unacknowledged_packets:

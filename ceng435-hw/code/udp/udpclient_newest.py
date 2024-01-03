@@ -29,6 +29,14 @@ def receive_data(client_socket, packet_queue, server_address, is_complete, last_
         except socket.error as e:
             print(f"Socket error: {e}")
             break
+            
+def save_files(file_id, received_packets, received_files):
+    # Write each file's data to a separate file
+    for file_id, received_packets in received_files.items():
+        with open(f'received_file_{file_id}.obj', 'wb') as f:
+            for i in sorted(received_packets.keys()):
+                f.write(received_packets[i])
+        print(f"File {file_id} reassembled and saved as 'received_file_{file_id}.obj'.")
 
 def process_packets(packet_queue, received_files, expected_seqs, expected_seq_lock, server_address, client_socket, is_complete, last_packet_time_lock):
     global last_packet_time
@@ -44,14 +52,7 @@ def process_packets(packet_queue, received_files, expected_seqs, expected_seq_lo
             if seq == 100000:  # Termination message
                 print("Termination message received. Ending transmission.")
                 is_complete.set()
-
-                # Write each file's data to a separate file
-                for file_id, received_packets in received_files.items():
-                    with open(f'received_file_{file_id}.obj', 'wb') as f:
-                        for i in sorted(received_packets.keys()):
-                            f.write(received_packets[i])
-                    print(f"File {file_id} reassembled and saved as 'received_file_{file_id}.obj'.")
-
+                save_files(file_id, received_packets, received_files)
                 break
 
             data = packet[12:]
@@ -110,11 +111,11 @@ def process_packets(packet_queue, received_files, expected_seqs, expected_seq_lo
 
 
 def udp_client():
-    server_host = "127.0.0.1"
-    #server_host = '172.17.0.2'  # Server IP address
+    #server_host = "127.0.0.1"
+    server_host = '172.17.0.2'  # Server IP address
     server_port = 20001
-    client_host = "127.0.0.1"
-    #client_host = '172.17.0.3'  # Client IP address
+    #client_host = "127.0.0.1"
+    client_host = '172.17.0.3'  # Client IP address
     client_port = 20002
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     client_socket.bind((client_host, client_port))

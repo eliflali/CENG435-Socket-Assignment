@@ -63,8 +63,8 @@ def round_robinizer(packets_per_file):
             
 
 def udp_server():
-    localIP = "127.0.0.1"
-    #localIP  = "172.17.0.2" #if compiled with docker
+    #localIP = "127.0.0.1"
+    localIP  = "172.17.0.2" #if compiled with docker
     localPort = 20001
     bufferSize = 1024
     finished= False
@@ -73,8 +73,8 @@ def udp_server():
     server_socket.bind((localIP, localPort))
 
 
-    clientIP = "127.0.0.1"
-    #clientIP = "172.17.0.3"  # Client's IP address
+    #clientIP = "127.0.0.1"
+    clientIP = "172.17.0.3"  # Client's IP address
     clientPort = 20002
     window_size = 4
     ssthresh = 8
@@ -98,7 +98,7 @@ def udp_server():
                 break
             state = file_transmission_state[round_robin_packets[rr_packet_index][0]]
             if(len(round_robin_packets) - rr_packet_index < window_size):
-                window_size = len(round_robin_packets) - rr_packet_index 
+                window_size = len(round_robin_packets) - rr_packet_index -1 
             while (state['next_seq_num'] < state['base'] + window_size) and (rr_packet_index < len(round_robin_packets)):
                 print(f"Sending packet {rr_packet_index} from file {round_robin_packets[rr_packet_index][0]}")
                 #print(round_robin_packets[next_seq_num][1])
@@ -108,7 +108,7 @@ def udp_server():
                 state['next_seq_num'] += 1
                 rr_packet_index += 1
 
-            server_socket.settimeout(0.1)
+            server_socket.settimeout(1.0)
             try:
                 ack_packet, address = server_socket.recvfrom(bufferSize)
                 if address[0] != clientIP or address[1] != clientPort:
@@ -140,6 +140,7 @@ def udp_server():
                     print("Timeout occurred, resending unacknowledged packets")
                     for file_id, seq_num in unacknowledged_packets:
                         packet_to_resend = packets_per_file[file_id][seq_num]
+                        print(file_id, seq_num)
                         server_socket.sendto(packet_to_resend, (clientIP, clientPort))
                         print(f"Resent packet {seq_num} from file {file_id}")
     finally:

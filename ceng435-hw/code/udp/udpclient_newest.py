@@ -95,7 +95,7 @@ def process_packets(packet_queue, received_files, expected_seqs, expected_seq_lo
                         nack_packet = struct.pack('III', file_id, expected_seq, 1)
                         client_socket.sendto(nack_packet, server_address)
                 else:
-                    #print(f"Checksum verification failed for packet: {seq} from file {file_id}")
+                    print(f"Checksum verification failed for packet: {seq} from file {file_id}")
                     # Send a NACK for the packet with the wrong checksum
                     nack_packet = struct.pack('III', file_id, seq, 1)
                     client_socket.sendto(nack_packet, server_address)

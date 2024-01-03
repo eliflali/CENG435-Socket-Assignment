@@ -94,6 +94,7 @@ def process_packets(packet_queue, received_files, expected_seqs, expected_seq_lo
                         received_files[file_id][seq] = data
                         # Send a NACK for the missing packet
                         ack_packet = struct.pack('III', file_id, seq, 0)
+                        client_socket.sendto(ack_packet, server_address)
                         nack_packet = struct.pack('III', file_id, expected_seq, 1)
                         client_socket.sendto(nack_packet, server_address)
                 else:
@@ -112,11 +113,11 @@ def process_packets(packet_queue, received_files, expected_seqs, expected_seq_lo
 
 
 def udp_client():
-    server_host = "127.0.0.1"
-    #server_host = '172.17.0.2'  # Server IP address
+    #server_host = "127.0.0.1"
+    server_host = '172.17.0.2'  # Server IP address
     server_port = 20001
-    client_host = "127.0.0.1"
-    #client_host = '172.17.0.3'  # Client IP address
+    #client_host = "127.0.0.1"
+    client_host = '172.17.0.3'  # Client IP address
     client_port = 20002
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     client_socket.bind((client_host, client_port))

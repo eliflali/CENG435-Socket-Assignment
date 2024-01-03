@@ -64,14 +64,17 @@ def round_robinizer(packets_per_file):
 
 def udp_server():
     localIP = "127.0.0.1"
+    #localIP  = "172.17.0.2" #if compiled with docker
     localPort = 20001
     bufferSize = 1024
+    finished= False
 
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     server_socket.bind((localIP, localPort))
 
 
     clientIP = "127.0.0.1"
+    #clientIP = "172.17.0.3"  # Client's IP address
     clientPort = 20002
     window_size = 4
     ssthresh = 8
@@ -88,8 +91,9 @@ def udp_server():
     rr_packet_index = 0
     ack_counter = 0
     duplicate_acks = 0
+    unacknowledged_packets = set()
     try:
-        while True:
+        while ack_counter < len(round_robin_packets)-1:
             if ack_counter >= len(round_robin_packets):
                 break
             state = file_transmission_state[round_robin_packets[rr_packet_index][0]]
@@ -99,10 +103,12 @@ def udp_server():
                 print(f"Sending packet {rr_packet_index} from file {round_robin_packets[rr_packet_index][0]}")
                 #print(round_robin_packets[next_seq_num][1])
                 server_socket.sendto(round_robin_packets[rr_packet_index][1], (clientIP, clientPort))
+                packet_identifier = (round_robin_packets[rr_packet_index][0], state['next_seq_num'])
+                unacknowledged_packets.add(packet_identifier)
                 state['next_seq_num'] += 1
                 rr_packet_index += 1
 
-            server_socket.settimeout(1.0)
+            server_socket.settimeout(0.1)
             try:
                 ack_packet, address = server_socket.recvfrom(bufferSize)
                 if address[0] != clientIP or address[1] != clientPort:
@@ -119,20 +125,26 @@ def udp_server():
 
                 else:
                     state = file_transmission_state[ack_file_id]
+                    acked_packet = (ack_file_id, ack_seq_num)
+                    if acked_packet in unacknowledged_packets:
+                        unacknowledged_packets.remove(acked_packet)
                     if ack_seq_num >= state['base']:
                         state['base'] = ack_seq_num + 1
                         ack_counter += 1
                         #print(ack_seq_num)
                         print(f"ACK received for packet {ack_seq_num} from file {ack_file_id} base: {ack_counter}")
-                        # Removed dynamic window size adjustment here
+
             except socket.timeout:
-                for file_id in range(len(obj_files)):
-                    state = file_transmission_state[file_id]
-                    # Removed dynamic window size adjustment here
-                    rr_packet_index -= state['next_seq_num'] - state['base']
-                    state['next_seq_num'] = state['base']
+                print("Timeout occurred")
+                if ack_counter != len(round_robin_packets) - 1:
+                    print("Timeout occurred, resending unacknowledged packets")
+                    for file_id, seq_num in unacknowledged_packets:
+                        packet_to_resend = packets_per_file[file_id][seq_num]
+                        server_socket.sendto(packet_to_resend, (clientIP, clientPort))
+                        print(f"Resent packet {seq_num} from file {file_id}")
     finally:
         #print(base, rr_packet_index)
+        finished = True
         if ack_counter >= rr_packet_index:
             
             print("All packets have been acknowledged. Terminating server.")

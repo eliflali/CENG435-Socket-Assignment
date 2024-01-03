@@ -111,8 +111,10 @@ def process_packets(packet_queue, received_files, expected_seqs, expected_seq_lo
 
 def udp_client():
     server_host = "127.0.0.1"
+    #server_host = '172.17.0.2'  # Server IP address
     server_port = 20001
     client_host = "127.0.0.1"
+    #client_host = '172.17.0.3'  # Client IP address
     client_port = 20002
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     client_socket.bind((client_host, client_port))

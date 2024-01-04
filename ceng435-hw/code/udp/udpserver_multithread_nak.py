@@ -65,8 +65,8 @@ def send_packets(file_id, packets, clientIP, clientPort, server_socket, packet_t
             
 
 def udp_server():
-    #localIP = "127.0.0.1"
-    localIP  = "172.17.0.2" #if compiled with docker
+    localIP = "127.0.0.1"
+    #localIP  = "172.17.0.2" #if compiled with docker
     localPort = 20001
     bufferSize = 1024
     finished= False
@@ -75,8 +75,8 @@ def udp_server():
     server_socket.bind((localIP, localPort))
 
 
-    #clientIP = "127.0.0.1"
-    clientIP = "172.17.0.3"  # Client's IP address
+    clientIP = "127.0.0.1"
+    #clientIP = "172.17.0.3"  # Client's IP address
     clientPort = 20002
     window_size = 4
     obj_files = read_files()
@@ -103,10 +103,6 @@ def udp_server():
     for t in threads:
         t.join()
 
-    # Wait for all threads to complete
-    for t in threads:
-        t.join()
-
 
      # Handling ACKs and retransmissions
     all_acked = False
@@ -129,18 +125,26 @@ def udp_server():
 
             # Check if all packets are ACKed
             all_acked = all(packet_state == 'ACKED' for packet_states in packet_transmission_state.values() for packet_state in packet_states)
+            if all_acked:
+                #print(len[packet_transmission_state.values()])
+                termination_packet = struct.pack('III', 0, 100000, 0)
+                server_socket.sendto(termination_packet, (clientIP, clientPort))
+                print("All packets ACKed. Sending termination packet and exiting.")
+                break 
 
         except socket.timeout:
             # Resend unacknowledged packets on timeout
+            print("Timeout occurred. Checking for unacknowledged packets...")
             for file_id, packet_states in packet_transmission_state.items():
                 for seq_num, state in enumerate(packet_states):
                     if state != 'ACKED':
+                        print(f"Unacknowledged packet found: File ID = {file_id}, Sequence = {seq_num}")
                         packet_to_resend = packets_per_file[file_id][seq_num]
                         server_socket.sendto(packet_to_resend, (clientIP, clientPort))
 
     # Send termination packet once all ACKs received
-    termination_packet = struct.pack('III', 0, 100000, 0)
-    server_socket.sendto(termination_packet, (clientIP, clientPort))
+    #termination_packet = struct.pack('III', 0, 100000, 0)
+    #server_socket.sendto(termination_packet, (clientIP, clientPort))
     server_socket.close()
 
 

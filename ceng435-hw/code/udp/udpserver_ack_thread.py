@@ -115,8 +115,8 @@ def send_packets(file_id, packets, clientIP, clientPort, server_socket, packet_t
             
 
 def udp_server():
-    #localIP = "127.0.0.1"
-    localIP  = "172.17.0.2" #if compiled with docker
+    localIP = "127.0.0.1"
+    #localIP  = "172.17.0.2" #if compiled with docker
     localPort = 20001
     bufferSize = 1024
     finished= False
@@ -125,8 +125,8 @@ def udp_server():
     server_socket.bind((localIP, localPort))
 
 
-    #clientIP = "127.0.0.1"
-    clientIP = "172.17.0.3"  # Client's IP address
+    clientIP = "127.0.0.1"
+    #clientIP = "172.17.0.3"  # Client's IP address
     clientPort = 20002
     window_size = 4
     obj_files = read_files()

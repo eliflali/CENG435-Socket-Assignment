@@ -167,13 +167,11 @@ def udp_client():
                 client_socket.sendto(ack_packet, (server_host, server_port))
                 expected_seqs[file_id] += 1
 
-            """
             for missing_seq in range(expected_seqs[file_id], last_received_seqs[file_id]):
                 if missing_seq not in received_files[file_id]:
                     print(f"Detected missing packet. Sending NACK for File ID = {file_id}, Sequence = {missing_seq}")
                     nack_packet = struct.pack('III', file_id, missing_seq, 1)  # 1 indicates NACK
                     client_socket.sendto(nack_packet, (server_host, server_port))
-            """
 
     finally:
         client_socket.close()

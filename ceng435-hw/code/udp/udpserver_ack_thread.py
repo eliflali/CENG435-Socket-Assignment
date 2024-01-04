@@ -61,9 +61,6 @@ def handle_acks(server_socket, packets_per_file, packet_transmission_state, clie
             server_socket.settimeout(1.0)  # Set timeout for receiving ACKs
             ack_packet, address = server_socket.recvfrom(bufferSize)
 
-            if address[0] != clientIP or address[1] != clientPort:
-                continue  # Ignore packets from unknown addresses
-
             ack_file_id, ack_seq_num, is_nack = struct.unpack('III', ack_packet)
 
             if is_nack:
@@ -93,9 +90,10 @@ def handle_acks(server_socket, packets_per_file, packet_transmission_state, clie
                 for seq_num, state in enumerate(packet_states):
                     if state != 'ACKED':
                         print(f"Unacknowledged packet found: File ID = {file_id}, Sequence = {seq_num}")
-                        """packet_to_resend = packets_per_file[file_id][seq_num]
-                        server_socket.sendto(packet_to_resend, (clientIP, clientPort))
-                        print(f"Resending unacknowledged packet: File ID = {file_id}, Sequence = {seq_num}")"""
+                        if state == 'SENT':
+                            packet_to_resend = packets_per_file[file_id][seq_num]
+                            server_socket.sendto(packet_to_resend, (clientIP, clientPort))
+                            print(f"Resending unacknowledged packet: File ID = {file_id}, Sequence = {seq_num}")
             continue 
 
     # Send termination packet once all ACKs received
@@ -107,16 +105,17 @@ def handle_acks(server_socket, packets_per_file, packet_transmission_state, clie
 def send_packets(file_id, packets, clientIP, clientPort, server_socket, packet_transmission_state, ack_counter, ack_counter_lock):
     for packet_index, packet in enumerate(packets):
         # Check the state of the packet before sending
-        #if packet_transmission_state[file_id][packet_index] != 'ACKED':
-        print(f"Sending packet {packet_index} from file {file_id}")
-        server_socket.sendto(packet, (clientIP, clientPort))
+        if packet_transmission_state[file_id][packet_index] != 'ACKED':
+            print(f"Sending packet {packet_index} from file {file_id}")
+            server_socket.sendto(packet, (clientIP, clientPort))
+            packet_transmission_state[file_id][packet_index] = 'SENT'
         #with ack_counter_lock:
         #   ack_counter += 1
             
 
 def udp_server():
-    localIP = "127.0.0.1"
-    #localIP  = "172.17.0.2" #if compiled with docker
+    #localIP = "127.0.0.1"
+    localIP  = "172.17.0.2" #if compiled with docker
     localPort = 20001
     bufferSize = 1024
     finished= False
@@ -125,8 +124,8 @@ def udp_server():
     server_socket.bind((localIP, localPort))
 
 
-    clientIP = "127.0.0.1"
-    #clientIP = "172.17.0.3"  # Client's IP address
+    #clientIP = "127.0.0.1"
+    clientIP = "172.17.0.3"  # Client's IP address
     clientPort = 20002
     window_size = 4
     obj_files = read_files()

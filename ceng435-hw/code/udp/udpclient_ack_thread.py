@@ -113,11 +113,11 @@ def process_packets(packet_queue, received_files, expected_seqs, expected_seq_lo
 
 
 def udp_client():
-    #server_host = '172.17.0.2'  # Server IP address
-    server_host = "127.0.0.1"
+    server_host = '172.17.0.2'  # Server IP address
+    #server_host = "127.0.0.1"
     server_port = 20001
-    #client_host = '172.17.0.3'  # Client IP address
-    client_host = "127.0.0.1"
+    client_host = '172.17.0.3'  # Client IP address
+    #client_host = "127.0.0.1"
     client_port = 20002
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     client_socket.bind((client_host, client_port))
@@ -150,16 +150,54 @@ def udp_client():
                 client_socket.sendto(nack_packet, (server_host, server_port))
                 continue
 
+            ack_packet = struct.pack('III', file_id, seq, 0)
+            client_socket.sendto(ack_packet, (server_host, server_port))
+
             if file_id not in received_files:
                 received_files[file_id] = {}
                 expected_seqs[file_id] = 0
-                last_received_seqs[file_id] = -1
 
+            expected_seq = 0
+            # If we haven't received any packets for this file yet, set the expected sequence number
+            if expected_seqs[file_id] == 0:
+                #print("first packet received from file: ", file_id)
+                expected_seqs[file_id] = seq
+                expected_seq = seq 
+            else:
+                #print("expected seq: ", expected_seqs[file_id])
+                expected_seq = expected_seqs[file_id]
+
+            if seq == expected_seq:
+                print(f"Received packet: {seq} from file {file_id}")
+                received_files[file_id][seq] = data
+                expected_seqs[file_id] += 1  # Update the expected sequence number for the file
+
+                # Check for any buffered out-of-order packets that can now be processed
+                while expected_seqs[file_id] in received_files[file_id]:
+                    expected_seq = expected_seqs[file_id]
+                    print(f"Received packet: {expected_seq} from file {file_id}")
+                    expected_seqs[file_id] += 1
+
+                # Send ACK for the correctly received packet
+                ack_packet = struct.pack('III', file_id, seq, 0)
+                client_socket.sendto(ack_packet, (server_host, server_port))
+
+            elif seq > expected_seq:
+                print(f"Out of order packet: {seq}, expected: {expected_seq} from file {file_id}")
+                received_files[file_id][seq] = data
+                # Send a NACK for the missing packet
+                ack_packet = struct.pack('III', file_id, seq, 0)
+                client_socket.sendto(ack_packet, (server_host, server_port))
+                nack_packet = struct.pack('III', file_id, expected_seq, 1)
+                client_socket.sendto(nack_packet, (server_host, server_port))
+
+            """
             received_files[file_id][seq] = data
             last_received_seqs[file_id] = max(last_received_seqs[file_id], seq)
             ack_packet = struct.pack('III', file_id, expected_seqs[file_id], 0)
             client_socket.sendto(ack_packet, (server_host, server_port))
             print(f"Packet stored: File ID = {file_id}, Sequence = {seq}")
+           
 
             while expected_seqs[file_id] in received_files[file_id]:
                 print(f"Sending ACK for File ID = {file_id}, Sequence = {expected_seqs[file_id]}")
@@ -168,10 +206,12 @@ def udp_client():
                 expected_seqs[file_id] += 1
 
             for missing_seq in range(expected_seqs[file_id], last_received_seqs[file_id]):
+                print(last_received_seqs[file_id], expected_seqs[file_id])
                 if missing_seq not in received_files[file_id]:
                     print(f"Detected missing packet. Sending NACK for File ID = {file_id}, Sequence = {missing_seq}")
                     nack_packet = struct.pack('III', file_id, missing_seq, 1)  # 1 indicates NACK
                     client_socket.sendto(nack_packet, (server_host, server_port))
+            """
 
     finally:
         client_socket.close()

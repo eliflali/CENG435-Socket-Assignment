@@ -1,37 +1,24 @@
-# Use Ubuntu 22.04 LTS (Jammy Jellyfish) as the base image
 FROM ubuntu:22.04
 
-# Set environment variable to avoid messages during package installation
-ARG DEBIAN_FRONTEND=noninteractive
-
-# Update and install packages
-RUN apt-get update && \
+RUN \
+    apt-get update && \
     apt-get -y upgrade && \
-    apt-get install -y --no-install-recommends \
-    build-essential \
-    software-properties-common \
-    byobu \
-    curl \
-    git \
-    htop \
-    man \
-    unzip \
-    vim \
-    wget \
-    python3 \
-    net-tools \
-    iputils-ping && \
-    # Clean up
+    apt-get install -y build-essential && \
+    apt-get install -y software-properties-common && \
+    apt-get install -y byobu curl git htop man unzip vim wget && \
+    apt-get install -y python3 && \
+    apt-get install -y net-tools && \
+    apt-get install -y dnsutils && \
+    apt-get install -y inetutils-ping && \
+    apt-get install -y iproute2 && \
     rm -rf /var/lib/apt/lists/*
 
-# Set the working directory to /root
+ENV HOME /root
+
 WORKDIR /root
 
-# Copy all files from the current directory to the container
 COPY . .
 
-# Make the script executable
 RUN chmod +x /root/objects/generateobjects.sh
 
-# Define default command to start the bash shell
-CMD ["bash"]
+CMD ["sleep", "infinity"]

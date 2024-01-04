@@ -54,16 +54,6 @@ def packet_creator(obj_files):
     return packets_per_file, file_transmission_state, packet_transmission_state
 
 
-def round_robinizer(packets_per_file):
-    round_robin_packets = []
-    for packet in range(len(packets_per_file[0])): #change 18
-        for file_number in range(len(packets_per_file)):
-            if packet < len(packets_per_file[file_number]):
-                round_robin_packets.append((file_number, packets_per_file[file_number][packet]))
-                #print(packet, file_number)
-    
-    return round_robin_packets
-
 def send_packets(file_id, packets, clientIP, clientPort, server_socket, packet_transmission_state, ack_counter, ack_counter_lock):
     for packet_index, packet in enumerate(packets):
         # Check the state of the packet before sending
@@ -93,7 +83,6 @@ def udp_server():
     
     packets_per_file, file_transmission_state, packet_transmission_state = packet_creator(obj_files)
     
-    round_robin_packets = round_robinizer(packets_per_file)
 
     print("Waiting for client to be ready...")
     ready_packet, address = server_socket.recvfrom(bufferSize)

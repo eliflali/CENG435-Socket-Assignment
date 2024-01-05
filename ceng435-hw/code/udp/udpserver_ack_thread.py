@@ -94,6 +94,7 @@ def handle_acks(server_socket, packets_per_file, packet_transmission_state, clie
                             packet_to_resend = packets_per_file[file_id][seq_num]
                             server_socket.sendto(packet_to_resend, (clientIP, clientPort))
                             print(f"Resending unacknowledged packet: File ID = {file_id}, Sequence = {seq_num}")
+                            
             continue 
 
     # Send termination packet once all ACKs received
@@ -136,6 +137,7 @@ def udp_server():
     print("Waiting for client to be ready...")
     ready_packet, address = server_socket.recvfrom(bufferSize)
     print(f"Client ready message received from {address}")
+    #server_socket.sendto(ready_packet, (clientIP, clientPort))
 
     # Create a shared counter for ACKs and a lock for thread-safe operations
     ack_counter = 0

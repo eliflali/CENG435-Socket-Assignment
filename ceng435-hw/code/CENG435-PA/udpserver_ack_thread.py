@@ -10,6 +10,7 @@ import threading
 
 
 def read_files():
+    # Find and list all .obj files in the specified directory
     objects_path = '../../objects'
     obj_files = sorted(glob.glob(os.path.join(objects_path, '*.obj')))
     print(f"Found object files: {obj_files}")
@@ -22,6 +23,7 @@ def compute_checksum(data):
 
 
 def packet_creator(obj_files):
+    # Function to create packets from object files
     MAX_PACKET_SIZE = 1000
     packets_per_file = {}
     file_transmission_state = {}
@@ -55,6 +57,7 @@ def packet_creator(obj_files):
 
 
 def handle_acks(server_socket, packets_per_file, packet_transmission_state, clientIP, clientPort, ack_counter_lock):
+    # Function to handle ACKs from the client
     bufferSize = 1024
     while True:
         try:
@@ -83,8 +86,7 @@ def handle_acks(server_socket, packets_per_file, packet_transmission_state, clie
                 break  # Exit loop if all packets are ACKed
 
         except socket.timeout:
-            #continue  # Continue listening for ACKs after timeout
-            # Print unacknowledged packets upon timeout
+            # Continue listening for ACKs after timeout
             print("Timeout occurred. Checking for unacknowledged packets...")
             for file_id, packet_states in packet_transmission_state.items():
                 for seq_num, state in enumerate(packet_states):
@@ -115,8 +117,8 @@ def send_packets(file_id, packets, clientIP, clientPort, server_socket, packet_t
             
 
 def udp_server():
-    #localIP = "127.0.0.1"
-    localIP  = "172.17.0.2" #if compiled with docker
+    localIP = "127.0.0.1"
+    #localIP  = "172.17.0.2" #if compiled with docker
     localPort = 20001
     bufferSize = 1024
     finished= False
@@ -125,8 +127,8 @@ def udp_server():
     server_socket.bind((localIP, localPort))
 
 
-    #clientIP = "127.0.0.1"
-    clientIP = "172.17.0.3"  # Client's IP address
+    clientIP = "127.0.0.1"
+    #clientIP = "172.17.0.3"  # Client's IP address
     clientPort = 20002
     window_size = 4
     obj_files = read_files()
@@ -137,7 +139,6 @@ def udp_server():
     print("Waiting for client to be ready...")
     ready_packet, address = server_socket.recvfrom(bufferSize)
     print(f"Client ready message received from {address}")
-    #server_socket.sendto(ready_packet, (clientIP, clientPort))
 
     # Create a shared counter for ACKs and a lock for thread-safe operations
     ack_counter = 0
